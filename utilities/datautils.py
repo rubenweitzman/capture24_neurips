@@ -194,5 +194,19 @@ class RandomSwitchAxis(object):
             sample = torch.stack([z, x, y], dim=0)
         elif choice == 6:
             sample = torch.stack([z, y, x], dim=0)
-        # print(sample.shape)
+        return sample
+
+
+class RotationAxis(object):
+    """
+    Rotation along an axis
+    """
+
+    def __call__(self, sample):
+        # 3 * FEATURE_SIZE
+        sample = np.swapaxes(sample, 0, 1)
+        angle = np.random.uniform(low=-np.pi, high=np.pi)
+        axis = np.random.uniform(low=-1, high=1, size=sample.shape[1])
+        sample = np.matmul(sample, axangle2mat(axis, angle))
+        sample = np.swapaxes(sample, 0, 1)
         return sample

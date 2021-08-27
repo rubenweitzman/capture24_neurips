@@ -12,13 +12,20 @@ def compute_scores(y_true, y_pred):
     accuracy = metrics.accuracy_score(y_true, y_pred)
     balanced_acuracy = metrics.balanced_accuracy_score(y_true, y_pred)
     kappa = metrics.cohen_kappa_score(y_true, y_pred)
+
+    f1 = metrics.f1_score(y_true, y_pred, zero_division=0, average='macro')
+    phi = metrics.matthews_corrcoef(y_true, y_pred)
+
     return {
         'confusion': confusion,
         'per_class_recall': per_class_recall,
         'accuracy': accuracy,
         'balanced_accuracy': balanced_acuracy,
         'kappa': kappa,
+        'f1': f1,
+        'phi': phi
     }
+
 
 def print_scores(scores):
     print("Accuracy score:", scores['accuracy'])

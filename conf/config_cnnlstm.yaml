@@ -13,3 +13,6 @@ gpu: 0
 augment: true
 multi_gpu: false
 gpu_ids: [0, 1, 2, 3]  # if more than one gpu
+eval: false
+trained_path: '/home/cxx579/capture24_neurips/logs/models/26-08-2021_13:32:13_weighted_costTrue.mdl'
+

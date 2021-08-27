@@ -22,7 +22,7 @@ from utilities.data_loader import NormalDataset
 from sklearn import preprocessing
 import copy
 from sklearn import metrics
-from utils import metrics_report
+from utils import metrics_report, train_hmm, viterbi
 
 
 # Torch
@@ -101,7 +101,69 @@ def evaluate_model(model, my_data_loader, my_device, loss_fn):
     test_y_real = np.array(test_y_real)
 
     metrics_report(test_y_real, test_y_pred)
-    return compute_scores(test_y_real, test_y_pred), current_loss
+    return compute_scores(test_y_real, test_y_pred), current_loss, test_y_real, test_y_pred
+
+
+def evaluate_model_hmm(hmm_paras, model, my_data_loader, my_device, loss_fn):
+    model.eval()
+    test_y_pred = []
+    test_y_real = []
+
+    current_loss = 0
+
+    for i, (my_X, my_y) in enumerate(my_data_loader):
+        my_X, my_y = Variable(my_X), Variable(my_y)
+        my_X = my_X.to(my_device, dtype=torch.float)
+        my_y = my_y.to(my_device, dtype=torch.long)
+
+        with torch.no_grad():
+            logits = model(my_X)
+            loss = loss_fn(logits, my_y)
+            current_loss += loss.item()
+
+            _, pred_idx = torch.max(logits, 1)
+
+            test_y_pred.extend(torch.max(logits, 1)[1].cpu().detach().numpy())
+            test_y_real.extend(my_y.cpu().detach().numpy())
+
+    current_loss = current_loss / len(my_data_loader)
+    test_y_pred = np.stack(test_y_pred)
+    test_y_real = np.array(test_y_real)
+    y_pred_hmm = viterbi(test_y_pred, hmm_paras)
+    metrics_report(test_y_real, y_pred_hmm)
+    return compute_scores(test_y_real, y_pred_hmm), current_loss, test_y_real, y_pred_hmm
+
+
+
+def get_hmm_paras(model, my_data_loader, my_device, loss_fn):
+    model.eval()
+    test_y_pred = []
+    test_y_real = []
+    test_y_prob = []
+
+    current_loss = 0
+
+    for i, (my_X, my_y) in enumerate(my_data_loader):
+        my_X, my_y = Variable(my_X), Variable(my_y)
+        my_X = my_X.to(my_device, dtype=torch.float)
+        my_y = my_y.to(my_device, dtype=torch.long)
+
+        with torch.no_grad():
+            logits = model(my_X)
+            loss = loss_fn(logits, my_y)
+            current_loss += loss.item()
+
+            current_y_pred_prob = torch.softmax(logits, dim=1)
+
+            _, pred_idx = torch.max(logits, 1)
+
+            test_y_pred.extend(torch.max(logits, 1)[1].cpu().detach().numpy())
+            test_y_real.extend(my_y.cpu().detach().numpy())
+            test_y_prob.extend(current_y_pred_prob.cpu().numpy())
+
+    test_y_prob = np.stack(test_y_prob)
+    test_y_real = np.array(test_y_real)
+    return train_hmm(test_y_prob, test_y_real)
 
 
 def set_seed(my_seed=44):
@@ -256,9 +318,11 @@ def main(cfg):
                               shuffle=True,
                               num_workers=num_workers)
     val_loader = DataLoader(val_dataset,
+                            shuffle=False,
                             batch_size=cfg.data.batch_size,
                             num_workers=num_workers)
     test_loader = DataLoader(test_dataset,
+                            shuffle=False,
                             batch_size=cfg.data.batch_size,
                             num_workers=num_workers)
 
@@ -318,8 +382,16 @@ def main(cfg):
     train_scores = []
     best_loss = 100
 
+
+    if cfg.eval_hmm:
+        hmm_params =  get_hmm_paras(model, val_loader, my_device, loss_fn)
+        test_scores, test_loss, _, _ = evaluate_model_hmm(hmm_params, model, test_loader,
+                                                my_device, loss_fn)
+        print(test_scores)
+        return
+
     if cfg.eval:
-        test_scores, test_loss = evaluate_model(model, test_loader,
+        test_scores, test_loss, _, _ = evaluate_model(model, test_loader,
                                                 my_device, loss_fn)
         print(test_scores)
         return

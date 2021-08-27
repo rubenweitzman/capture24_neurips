@@ -22,7 +22,10 @@ Change the GPU field in `config_cnnlstm.yaml` if you want to run on CPU.
 
 ### How to make inference
 ```shell
-python ssl_train.py eval=True gpu=2
-python cnn_lstm_train.py eval=True gpu=1
+python ssl_train.py eval=True gpu=2  # pretrained cnn
+python ssl_train.py eval=True eval.gpu=2  eval_hmm=True# pretrained cnn + HMM
+
+python cnn_lstm_train.py eval=True gpu=1 
+python cnn_lstm_train.py eval=True eval.hmm=True gpu=1 
 ```
 

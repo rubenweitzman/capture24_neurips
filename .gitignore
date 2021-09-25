@@ -5,3 +5,5 @@ data/*
 prepared_data/*
 prepared_data.tar.gz
 .DS_Store
+slurm_scripts/*
+*.out

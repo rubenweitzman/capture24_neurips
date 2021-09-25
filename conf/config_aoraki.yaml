@@ -1,0 +1,8 @@
+defaults:
+  - experiment: aoraki
+
+seed: 42
+ckpt_path: null
+fit: true
+test: true
+record_path: /nfs-share/catherine/workspace/capture24/dnn_results.csv

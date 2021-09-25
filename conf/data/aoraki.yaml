@@ -1,0 +1,8 @@
+name: default
+
+datadir: /datasets/capture24/data/neurips_data/
+val_size: 20
+seq_length: 8
+n_users: null
+n_samples: null
+window_len: 1000 # 10 seconds * 100 hz

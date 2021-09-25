@@ -2,6 +2,7 @@ import os
 import random
 import warnings
 import numpy as np
+import pandas as pd
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -206,7 +207,7 @@ class DataModule(pl.LightningDataModule):
 
         X = np.load(os.path.join(data_cfg['datadir'], 'X.npy'))
         Y = np.load(os.path.join(data_cfg['datadir'], 'Y_willetts.npy'))
-        pid = np.load(os.path.join(data_cfg['datadir'], 'pid.npy'))
+        pid = np.load(os.path.join(data_cfg['datadir'], 'pid.npy'), allow_pickle=True)
 
         # deriv/test split: P001-P100 for derivation, the rest for testing
         whr_deriv = np.isin(pid, [f"P{i:03d}" for i in range(1,101)])
@@ -220,6 +221,16 @@ class DataModule(pl.LightningDataModule):
                                            replace=False))
         X_val, Y_val, pid_val = X_deriv[whr_val], Y_deriv[whr_val], pid_deriv[whr_val]
         X_train, Y_train, pid_train = X_deriv[~whr_val], Y_deriv[~whr_val], pid_deriv[~whr_val]
+        
+        original_X_shape = X_train.shape
+        if data_cfg.n_users is not None:
+            X_train, Y_train, pid_train = utils.get_data_from_n_users(X_train, Y_train, pid_train, data_cfg.n_users)
+        if data_cfg.n_samples is not None:
+            X_train, Y_train, pid_train = utils.get_data_from_n_samples(X_train, Y_train, pid_train, data_cfg.n_samples)
+        if data_cfg.window_len < 1000:
+            X_train, Y_train, pid_train = utils.get_data_from_n_samples(data_cfg.window_len, X_train, Y_train, pid_train)
+        new_X_shape = X_train.shape
+        print(f"X shape from {original_X_shape} --> {new_X_shape}")
 
         self.dataset_train = Dataset(X_train, Y_train, transform=self.transform, seq_length=data_cfg["seq_length"])
         self.dataset_valid = Dataset(X_val, Y_val, seq_length=data_cfg["seq_length"])
@@ -355,7 +366,7 @@ def resolve_cfg_paths(cfg: DictConfig):
         cfg.ckpt_path = os.path.expanduser(cfg.ckpt_path)
 
 
-@hydra.main(config_path="conf", config_name="config")
+@hydra.main(config_path="conf", config_name="config_aoraki")
 def main(cfg: DictConfig) -> None:
 
     print(OmegaConf.to_yaml(cfg))
@@ -380,6 +391,7 @@ def main(cfg: DictConfig) -> None:
                          limit_val_batches=cfg.limit_val_batches,
                          limit_test_batches=cfg.limit_test_batches,
                          deterministic=True,
+                         progress_bar_refresh_rate=0
                          )
 
     if cfg.fit:
@@ -387,10 +399,18 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.test:
         trainer.validate(model, datamodule=datamodule)
-        trainer.test(model, datamodule=datamodule)
+        test_results = trainer.test(model, datamodule=datamodule)
+        if isinstance(test_results, list):
+            test_results = test_results[0]
+        utils.write_experiment_results_to_csv(cfg, test_results)
+
 
     return
 
 
 if __name__ == '__main__':
+    """
+    source /nfs-share/catherine/miniconda3/bin/activate virimu
+    /nfs-share/catherine/miniconda3/envs/virimu/bin/python main.py data.n_users=1
+    """
     main()

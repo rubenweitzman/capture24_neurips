@@ -25,9 +25,18 @@ def main(args):
 
     X = data_deriv[featcols].to_numpy()
     Y = data_deriv[labelcol].to_numpy()
+    pid = data_deriv['pid'].to_numpy()
 
     X_test = data_test[featcols].to_numpy()
     Y_test = data_test[labelcol].to_numpy()
+
+    original_X_shape = X.shape
+    if args.n_users is not None:
+        X, Y, pid = utils.get_data_from_n_users(X, Y, pid, args.n_users)
+    if args.n_samples is not None:
+        X, Y, pid = utils.get_data_from_n_samples(X, Y, pid, args.n_samples)
+    new_X_shape = X.shape
+    print(f"X shape from {original_X_shape} --> {new_X_shape}")
 
     clf = BalancedRandomForestClassifier(
         n_estimators=args.n_estimators,
@@ -53,11 +62,12 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('datadir')
+    parser.add_argument('--datadir', default='/datasets/capture24/data/neurips_data/')
     parser.add_argument('--label', default='label:Willetts2018')
     parser.add_argument('--n_estimators', type=int, default=3000)
     parser.add_argument('--n_jobs', type=int, default=4)
+    parser.add_argument('--n_users', type=int)
+    parser.add_argument('--n_samples', type=int)
     parser.add_argument('--smoke_test', action='store_true')
     args = parser.parse_args()
-
     main(args)

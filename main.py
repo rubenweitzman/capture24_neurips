@@ -336,7 +336,7 @@ class Dataset(torch.utils.data.Dataset):
     def prepare_x(self, x):
         if self.seq_length > 1:
             return np.asarray([self._prepare_x(_x) for _x in x])
-        return self.transform(x)
+        return self._prepare_x(x)
 
     def prepare_y(self, y):
         if self.seq_length > 1:
@@ -402,7 +402,7 @@ def main(cfg: DictConfig) -> None:
         test_results = trainer.test(model, datamodule=datamodule)
         if isinstance(test_results, list):
             test_results = test_results[0]
-        utils.write_experiment_results_to_csv(cfg, test_results)
+        utils.write_experiment_results_to_csv(record=test_results, cfg=cfg)
 
 
     return

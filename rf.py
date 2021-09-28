@@ -51,13 +51,19 @@ def main(args):
     Y_pred = clf.predict(X_test)
 
     print("RF performance:")
-    utils.metrics_report(Y_test, Y_pred, n_jobs=args.n_jobs)
+    rf_results = utils.metrics_report(Y_test, Y_pred, n_jobs=args.n_jobs, prefix='test')
 
     hmm_params = utils.train_hmm(clf.oob_decision_function_, Y, clf.classes_)
     Y_pred_hmm = utils.viterbi(Y_pred, hmm_params)
 
     print("RF + HMM performance:")
-    utils.metrics_report(Y_test, Y_pred_hmm, n_jobs=args.n_jobs)
+    rf_hmm_results = utils.metrics_report(Y_test, Y_pred_hmm, n_jobs=args.n_jobs, prefix='test/hmm')
+
+    record = {**rf_results, **rf_hmm_results}
+    record['data/n_users'] = args.n_users
+    record['data/n_sampels'] = args.n_samples
+
+    utils.write_experiment_results_to_csv(record, "/nfs-share/catherine/workspace/capture24/rf_results.csv")
 
 
 if __name__ == '__main__':

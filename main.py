@@ -223,14 +223,26 @@ class DataModule(pl.LightningDataModule):
         X_train, Y_train, pid_train = X_deriv[~whr_val], Y_deriv[~whr_val], pid_deriv[~whr_val]
         
         original_X_shape = X_train.shape
+        original_n_users = len(set(pid_train))
         if data_cfg.n_users is not None:
-            X_train, Y_train, pid_train = utils.get_data_from_n_users(X_train, Y_train, pid_train, data_cfg.n_users)
+            n_train_users = int(data_cfg.n_users * 0.8)
+            n_val_users = int(data_cfg.n_users - n_train_users)
+            X_train, Y_train, pid_train = utils.get_data_from_n_users(X_train, Y_train, pid_train, n_train_users)
         if data_cfg.n_samples is not None:
-            X_train, Y_train, pid_train = utils.get_data_from_n_samples(X_train, Y_train, pid_train, data_cfg.n_samples)
-        if data_cfg.window_len < 1000:
-            X_train, Y_train, pid_train = utils.get_data_from_n_samples(data_cfg.window_len, X_train, Y_train, pid_train)
+            n_train_samples = int(data_cfg.n_samples * 0.8)
+            n_val_samples = int(data_cfg.n_samples - data_cfg.n_train_samples)
+            X_train, Y_train, pid_train = utils.get_data_from_n_samples(X_train, Y_train, pid_train, n_train_samples)
         new_X_shape = X_train.shape
-        print(f"X shape from {original_X_shape} --> {new_X_shape}")
+        print(f"Train: X shape from {original_X_shape} ({original_n_users} users) --> {new_X_shape} ({len(set(pid_train))} users)")
+
+        original_X_shape = X_train.shape
+        original_n_users = len(set(pid_val))
+        if data_cfg.n_users is not None:
+            X_val, Y_val, pid_val = utils.get_data_from_n_users(X_val, Y_val, pid_val, n_val_users)
+        if data_cfg.n_samples is not None:
+            X_val, Y_val, pid_val = utils.get_data_from_n_samples(X_val, Y_val, pid_val, n_val_samples)
+        new_X_shape = X_val.shape
+        print(f"Val: X shape from {original_X_shape} ({original_n_users} users) --> {new_X_shape} ({len(set(pid_val))} users)")
 
         self.dataset_train = Dataset(X_train, Y_train, transform=self.transform, seq_length=data_cfg["seq_length"])
         self.dataset_valid = Dataset(X_val, Y_val, seq_length=data_cfg["seq_length"])

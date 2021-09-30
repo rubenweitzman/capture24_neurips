@@ -12,6 +12,9 @@ def main(args):
     # For reproducibility
     np.random.seed(42)
 
+    if args.window_len is not None:
+        args.datadir = os.path.join(args.datadir, 'prepared_data_vary_winsize', f'prepared_data_{args.window_len}s')
+
     data = pd.read_pickle(os.path.join(args.datadir, 'featframe.pkl'))
     featcols = np.loadtxt(os.path.join(args.datadir, 'features.txt'), dtype='str')
     labelcol = args.label
@@ -29,7 +32,7 @@ def main(args):
 
     X_test = data_test[featcols].to_numpy()
     Y_test = data_test[labelcol].to_numpy()
-
+    
     original_X_shape = X.shape
     if args.n_users is not None:
         X, Y, pid = utils.get_data_from_n_users(X, Y, pid, args.n_users)
@@ -63,7 +66,11 @@ def main(args):
     record['data/n_users'] = args.n_users
     record['data/n_sampels'] = args.n_samples
 
-    utils.write_experiment_results_to_csv(record, "/nfs-share/catherine/workspace/capture24/rf_results.csv")
+    if args.window_len is not None:
+        record['data/window_len'] = args.window_len
+        utils.write_experiment_results_to_csv(record, "/nfs-share/catherine/workspace/capture24/rf_results_windows.csv")
+    else:
+        utils.write_experiment_results_to_csv(record, "/nfs-share/catherine/workspace/capture24/rf_results.csv")
 
 
 if __name__ == '__main__':
@@ -74,6 +81,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_jobs', type=int, default=4)
     parser.add_argument('--n_users', type=int)
     parser.add_argument('--n_samples', type=int)
+    parser.add_argument('--window_len', type=int)
     parser.add_argument('--smoke_test', action='store_true')
     args = parser.parse_args()
     main(args)

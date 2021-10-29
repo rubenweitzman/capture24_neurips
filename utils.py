@@ -112,3 +112,4 @@ def metrics_report(Y_true, Y_pred, nboots=100, n_jobs=4):
     print(f"   f1: {f1:.3f} ({f1_low:.3f}, {f1_hi:.3f})")
     print(f"  phi: {phi:.3f} ({phi_low:.3f}, {phi_hi:.3f})")
     print(f"kappa: {kappa:.3f} ({kappa_low:.3f}, {kappa_hi:.3f})")
+    return kappa

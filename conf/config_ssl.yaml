@@ -13,6 +13,6 @@ gpu: 2
 augment: true
 eval: false
 trained_path: '/home/cxx579/capture24_neurips/ssl_logs/models/26-08-2021_13:30:51_weighted_costTrue_freeze_False.mdl'
+# 10 classes
+# trained_path: '/home/cxx579/capture24_neurips/ssl_logs/models/29-09-2021_13:45:28_weighted_costFalse_freeze_False.mdl'
 eval_hmm: false
-
-

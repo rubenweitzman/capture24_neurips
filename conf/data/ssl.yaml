@@ -4,6 +4,7 @@ name: ssl
 datadir: /data/UKBB/capture24_neurips_30hz
 X_path: "${data.datadir}/X_30hz.npy"
 Y_path: "${data.datadir}/Y_willetts.npy"
+#Y_path: "/data/UKBB/capture24_neurips/prepared_data/Y_WillettsSpecific.npy"
 pid_path: "${data.datadir}/pid.npy"
 val_size: 20
 batch_size: 3000  # indicate the number of subjects for cnnlstm

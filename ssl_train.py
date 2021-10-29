@@ -49,8 +49,8 @@ now = datetime.now()
 #
 ################################
 def report_model_performance(model, my_train_loader, my_test_loader, my_writer, my_device, loss_fn, epoch):
-    epoch_train_scores, train_loss = evaluate_model(model, my_train_loader, my_device, loss_fn)
-    epoch_val_scores, val_loss = evaluate_model(model, my_test_loader, my_device, loss_fn)
+    epoch_train_scores, train_loss, _, _ = evaluate_model(model, my_train_loader, my_device, loss_fn)
+    epoch_val_scores, val_loss, _, _ = evaluate_model(model, my_test_loader, my_device, loss_fn)
 
     print(epoch_train_scores)
     print(epoch_val_scores)
@@ -385,10 +385,11 @@ def main(cfg):
 
     if cfg.eval_hmm:
         hmm_params =  get_hmm_paras(model, val_loader, my_device, loss_fn)
-        test_scores, test_loss, _, _ = evaluate_model_hmm(hmm_params, model, test_loader,
+        test_scores, test_loss, test_y_real, y_pred_hmm = evaluate_model_hmm(hmm_params, model, test_loader,
                                                 my_device, loss_fn)
+        np.save('/home/cxx579/capture24_neurips/tmp/test_y.npy', test_y_real)
+        np.save('/home/cxx579/capture24_neurips/tmp/test_y_pred_hmm.npy', y_pred_hmm)
         print(test_scores)
-        return
 
     if cfg.eval:
         test_scores, test_loss, _, _ = evaluate_model(model, test_loader,

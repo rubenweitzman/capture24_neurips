@@ -18,8 +18,14 @@ from augmentation import Augment
 import utils
 
 
-class ModelModule(pl.LightningModule):
+# save np.load
+np_load_old = np.load
 
+# modify the default parameters of np.load
+np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
+
+
+class ModelModule(pl.LightningModule):
     def __init__(self, model_cfg, optim_cfg):
         super().__init__()
         self.save_hyperparameters()
@@ -39,7 +45,8 @@ class ModelModule(pl.LightningModule):
             model_cfg["drop1"],
             model_cfg["drop2"],
             model_cfg["fc_size"],
-            model_cfg["is_cnnlstm"])
+            model_cfg["is_cnnlstm"],
+        )
 
         self.loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -58,27 +65,29 @@ class ModelModule(pl.LightningModule):
 
         self.num_batches_per_epoch = len(self.train_dataloader())
 
-        if optim_cfg["method"] == 'adam':
+        if optim_cfg["method"] == "adam":
             optimizer = torch.optim.AdamW(
                 self.model.parameters(),
                 lr=optim_cfg["adam"]["lr"],
-                amsgrad=optim_cfg["adam"]["amsgrad"])
+                amsgrad=optim_cfg["adam"]["amsgrad"],
+            )
 
             return optimizer
 
-        elif optim_cfg["method"] == 'sgd':
+        elif optim_cfg["method"] == "sgd":
 
             optimizer = torch.optim.SGD(
-                self.model.parameters(),
-                lr=optim_cfg["sgd"]["lr"])
+                self.model.parameters(), lr=optim_cfg["sgd"]["lr"]
+            )
 
             lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optimizer,
                 T_0=optim_cfg["cosine_annealing"]["T_0"],
                 T_mult=optim_cfg["cosine_annealing"]["T_mult"],
-                eta_min=optim_cfg["cosine_annealing"]["eta_min"])
+                eta_min=optim_cfg["cosine_annealing"]["eta_min"],
+            )
 
-            return {'optimizer': optimizer, 'lr_scheduler': lr_scheduler}
+            return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
 
     def training_step(self, batch, batch_idx):
 
@@ -93,18 +102,19 @@ class ModelModule(pl.LightningModule):
         optimizer.step()
 
         if not self.is_swa_started:
-            if self.optim_cfg["method"] == 'sgd':
+            if self.optim_cfg["method"] == "sgd":
                 self.lr_schedulers().step(self.global_step / self.num_batches_per_epoch)
 
-        self.log('train/loss', loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log("train/loss", loss, on_epoch=True, on_step=False, prog_bar=True)
 
     def training_epoch_end(self, outputs=None) -> None:
-        self.is_swa_started = self.is_swa_started or \
-            torch.tensor(self.current_epoch + 1 >= self.optim_cfg["swa"]["start"])
+        self.is_swa_started = self.is_swa_started or torch.tensor(
+            self.current_epoch + 1 >= self.optim_cfg["swa"]["start"]
+        )
 
         if self.is_swa_started:
             self._update_swa_model()
-            if self.optim_cfg["method"] == 'sgd':
+            if self.optim_cfg["method"] == "sgd":
                 self._adjust_learning_rate(self.optim_cfg["swa"]["lr"])
 
     def validation_step(self, batch, batch_idx):
@@ -134,11 +144,18 @@ class ModelModule(pl.LightningModule):
         self._metrics_log(Y_true, Y_pred, tag=tag, print_report=print_report)
 
         # Apply HMM. Note: outputs must be sorted
-        Y_pred_hmm = utils.viterbi(Y_pred, {"prior": self.hmm_prior.cpu().numpy(),
-                                            "emission": self.hmm_emission.cpu().numpy(),
-                                            "transition": self.hmm_transition.cpu().numpy(),
-                                            "labels": self.hmm_labels.cpu().numpy()})
-        self._metrics_log(Y_true, Y_pred_hmm, tag=f"{tag}/hmm", print_report=print_report)
+        Y_pred_hmm = utils.viterbi(
+            Y_pred,
+            {
+                "prior": self.hmm_prior.cpu().numpy(),
+                "emission": self.hmm_emission.cpu().numpy(),
+                "transition": self.hmm_transition.cpu().numpy(),
+                "labels": self.hmm_labels.cpu().numpy(),
+            },
+        )
+        self._metrics_log(
+            Y_true, Y_pred_hmm, tag=f"{tag}/hmm", print_report=print_report
+        )
 
     def _train_hmm(self, outputs):
         # Note: outputs must be sorted
@@ -152,7 +169,7 @@ class ModelModule(pl.LightningModule):
         self.hmm_labels = torch.as_tensor(hmm_params["labels"])
 
     def _metrics_log(self, Y_true, Y_pred, tag="", print_report=False):
-        f1 = metrics.f1_score(Y_true, Y_pred, zero_division=0, average='macro')
+        f1 = metrics.f1_score(Y_true, Y_pred, zero_division=0, average="macro")
         phi = metrics.matthews_corrcoef(Y_true, Y_pred)
         kappa = metrics.cohen_kappa_score(Y_true, Y_pred)
         self.log(f"{tag}/f1", f1, prog_bar=True)
@@ -189,12 +206,11 @@ class ModelModule(pl.LightningModule):
 
     def _adjust_learning_rate(self, lr):
         for param_group in self.optimizers().optimizer.param_groups:
-            param_group['lr'] = lr
+            param_group["lr"] = lr
         return lr
 
 
 class DataModule(pl.LightningDataModule):
-
     def __init__(self, data_cfg, dataloader_cfg, augment_cfg):
         super().__init__()
 
@@ -203,19 +219,26 @@ class DataModule(pl.LightningDataModule):
         self.augment_cfg = augment_cfg
 
         self.transform = Augment(
-            augment_cfg["jitter"]["sigma"], augment_cfg["jitter"]["prob"],
-            augment_cfg["shift"]["window"], augment_cfg["shift"]["prob"],
-            augment_cfg["twarp"]["sigma"], augment_cfg["twarp"]["knots"], augment_cfg["twarp"]["prob"],
-            augment_cfg["mwarp"]["sigma"], augment_cfg["mwarp"]["knots"], augment_cfg["mwarp"]["prob"],
+            augment_cfg["jitter"]["sigma"],
+            augment_cfg["jitter"]["prob"],
+            augment_cfg["shift"]["window"],
+            augment_cfg["shift"]["prob"],
+            augment_cfg["twarp"]["sigma"],
+            augment_cfg["twarp"]["knots"],
+            augment_cfg["twarp"]["prob"],
+            augment_cfg["mwarp"]["sigma"],
+            augment_cfg["mwarp"]["knots"],
+            augment_cfg["mwarp"]["prob"],
         )
 
     def setup(self, stage=None):
 
         data_cfg = self.data_cfg
 
-        X = np.load(os.path.join(data_cfg['datadir'], 'X.npy'))
-        Y = np.load(os.path.join(data_cfg['datadir'], 'Y_willetts.npy'))
-        pid = np.load(os.path.join(data_cfg['datadir'], 'pid.npy'))
+        X = np.load(os.path.join(data_cfg["datadir"], "X.npy"))
+        # Y = np.load(os.path.join(data_cfg["datadir_anno"], "Y_willetts.npy"))
+        Y = np.load(os.path.join(data_cfg["datadir_anno"], "Y_Walmsley.npy"))
+        pid = np.load(os.path.join(data_cfg["datadir"], "pid.npy"))
 
         # deriv/test split: P001-P100 for derivation, the rest for testing
         whr_deriv = np.isin(pid, [f"P{i:03d}" for i in range(1, 101)])
@@ -223,42 +246,57 @@ class DataModule(pl.LightningDataModule):
         X_test, Y_test, pid_test = X[~whr_deriv], Y[~whr_deriv], pid[~whr_deriv]
 
         # further split deriv into train/val
-        whr_val = np.isin(pid_deriv,
-                          np.random.choice(np.unique(pid_deriv),
-                                           size=data_cfg['val_size'],
-                                           replace=False))
+        whr_val = np.isin(
+            pid_deriv,
+            np.random.choice(
+                np.unique(pid_deriv), size=data_cfg["val_size"], replace=False
+            ),
+        )
         X_val, Y_val, pid_val = X_deriv[whr_val], Y_deriv[whr_val], pid_deriv[whr_val]
-        X_train, Y_train, pid_train = X_deriv[~whr_val], Y_deriv[~whr_val], pid_deriv[~whr_val]
+        X_train, Y_train, pid_train = (
+            X_deriv[~whr_val],
+            Y_deriv[~whr_val],
+            pid_deriv[~whr_val],
+        )
 
-        self.dataset_train = Dataset(X_train, Y_train, transform=self.transform, seq_length=data_cfg["seq_length"])
+        self.dataset_train = Dataset(
+            X_train,
+            Y_train,
+            transform=self.transform,
+            seq_length=data_cfg["seq_length"],
+        )
         self.dataset_valid = Dataset(X_val, Y_val, seq_length=data_cfg["seq_length"])
         self.dataset_test = Dataset(X_test, Y_test, seq_length=data_cfg["seq_length"])
 
     def train_dataloader(self):
-        return DataModule.create_dataloader(self.dataset_train,
-                                            **self.dataloader_cfg["train"],
-                                            deterministic=False)
+        return DataModule.create_dataloader(
+            self.dataset_train, **self.dataloader_cfg["train"], deterministic=False
+        )
 
     def val_dataloader(self):
-        return DataModule.create_dataloader(self.dataset_valid,
-                                            **self.dataloader_cfg["valid"],
-                                            deterministic=True)
+        return DataModule.create_dataloader(
+            self.dataset_valid, **self.dataloader_cfg["valid"], deterministic=True
+        )
 
     def test_dataloader(self):
-        return DataModule.create_dataloader(self.dataset_test,
-                                            **self.dataloader_cfg["test"],
-                                            deterministic=True)
+        return DataModule.create_dataloader(
+            self.dataset_test, **self.dataloader_cfg["test"], deterministic=True
+        )
 
     @staticmethod
-    def create_dataloader(dataset, seed=12345, batch_size=64, num_workers=1, deterministic=False):
+    def create_dataloader(
+        dataset, seed=12345, batch_size=64, num_workers=1, deterministic=False
+    ):
 
         if deterministic:
 
             if not num_workers > 0:
-                warnings.warn("Deterministic dataloader with num_workers=0 is not supported yet")
+                warnings.warn(
+                    "Deterministic dataloader with num_workers=0 is not supported yet"
+                )
 
             def worker_init_fn(worker_id):
-                """ Always start with same seed"""
+                """Always start with same seed"""
                 torch.manual_seed(seed)
                 np.random.seed(seed)
                 random.seed(seed)
@@ -266,8 +304,8 @@ class DataModule(pl.LightningDataModule):
         else:
 
             def worker_init_fn(worker_id):
-                """ Ensure external RNG is randomly seeded """
-                seed = torch.initial_seed() % (2**32)
+                """Ensure external RNG is randomly seeded"""
+                seed = torch.initial_seed() % (2 ** 32)
                 np.random.seed(seed)
                 random.seed(seed)
 
@@ -284,7 +322,6 @@ class DataModule(pl.LightningDataModule):
 
 
 class Dataset(torch.utils.data.Dataset):
-
     def __init__(self, X, Y=None, transform=None, seq_length=1):
 
         if seq_length > 1:
@@ -292,8 +329,8 @@ class Dataset(torch.utils.data.Dataset):
             # it's hacky but not gonna make a big diff
             nX = int((len(X) // seq_length) * seq_length)
             nY = int((len(Y) // seq_length) * seq_length)  # should = nX
-            X = [X[i:i + seq_length] for i in range(0, nX, seq_length)]
-            Y = [Y[i:i + seq_length] for i in range(0, nY, seq_length)]
+            X = [X[i : i + seq_length] for i in range(0, nX, seq_length)]
+            Y = [Y[i : i + seq_length] for i in range(0, nY, seq_length)]
 
         self.X = X
         self.Y = Y
@@ -316,14 +353,10 @@ class Dataset(torch.utils.data.Dataset):
 
     @staticmethod
     def to_class_idx(y):
-        return [
-            "sleep",
-            "sit-stand",
-            "vehicle",
-            "walking",
-            "mixed",
-            "bicycling"
-        ].index(y)
+        # return ["sleep", "sit-stand", "vehicle", "walking", "mixed", "bicycling"].index(
+        #     y
+        # )
+        return ["sedentary", "sleep", "light", "moderate-vigorous"].index(y)
 
     def _prepare_x(self, x):
         if self.transform is not None:
@@ -343,7 +376,7 @@ class Dataset(torch.utils.data.Dataset):
 
 
 def create_lightning_modules(cfg: DictConfig):
-    """ Create the data and model modules """
+    """Create the data and model modules"""
 
     # Data module
     datamodule = DataModule(cfg.data, cfg.dataloader, cfg.augment)
@@ -377,19 +410,25 @@ def main(cfg: DictConfig) -> None:
     datamodule, model = create_lightning_modules(cfg)
 
     # Trainer
-    early_stop_callback = EarlyStopping(monitor='valid/loss', patience=cfg.early_stop_patience, mode='min')
-    checkpoint_callback = ModelCheckpoint(monitor='valid/loss', mode='min', filename='best')
-    trainer = pl.Trainer(gpus=1, auto_select_gpus=True,
-                         precision=16,
-                         max_epochs=cfg.n_epochs,
-                         callbacks=[early_stop_callback, checkpoint_callback],
-                         log_every_n_steps=10,
-                         num_sanity_val_steps=0,
-                         limit_train_batches=cfg.limit_train_batches,
-                         limit_val_batches=cfg.limit_val_batches,
-                         limit_test_batches=cfg.limit_test_batches,
-                         deterministic=True,
-                         )
+    early_stop_callback = EarlyStopping(
+        monitor="valid/loss", patience=cfg.early_stop_patience, mode="min"
+    )
+    checkpoint_callback = ModelCheckpoint(
+        monitor="valid/loss", mode="min", filename="best"
+    )
+    trainer = pl.Trainer(
+        gpus=1,
+        auto_select_gpus=True,
+        precision=16,
+        max_epochs=cfg.n_epochs,
+        callbacks=[early_stop_callback, checkpoint_callback],
+        log_every_n_steps=10,
+        num_sanity_val_steps=0,
+        limit_train_batches=cfg.limit_train_batches,
+        limit_val_batches=cfg.limit_val_batches,
+        limit_test_batches=cfg.limit_test_batches,
+        deterministic=True,
+    )
 
     if cfg.fit:
         trainer.fit(model, datamodule)
@@ -400,5 +439,5 @@ def main(cfg: DictConfig) -> None:
     return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

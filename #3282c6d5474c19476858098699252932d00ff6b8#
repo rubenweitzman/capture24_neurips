@@ -264,6 +264,7 @@ class Resnet(nn.Module):
             bsize, seqlen, _, _ = x.shape
             x = x.view(-1, x.shape[2], x.shape[3])  # merge batch and sequence axes
             feats = self.resnet(x).view(bsize, seqlen, -1)
+            print(self.lstm(feats))
             lstm_feats, (h_n, c_n) = self.lstm(feats)
             lstm_feats = lstm_feats.reshape(
                 -1, lstm_feats.shape[2]
@@ -276,3 +277,4 @@ class Resnet(nn.Module):
             y = self.resnet(x).view(x.shape[0], -1)
 
         return y
+ 

@@ -193,9 +193,12 @@ class Resnet(nn.Module):
             resnet.add_module("final", nn.Conv1d(fc_size, outsize, 1, 1, 0, bias=False))
 
         else:
+            in_channels = in_channels * n_channels
             self.lstm = nn.LSTM(
                 in_channels, int(fc_size // 2), batch_first=True, bidirectional=True
             )
+            print("in_channels: ", in_channels)
+            print("int(fc_size // 2): ", int(fc_size // 2))
             self.final = nn.Linear(fc_size, outsize, bias=False)
 
         self.resnet = resnet
@@ -264,6 +267,8 @@ class Resnet(nn.Module):
             bsize, seqlen, _, _ = x.shape
             x = x.view(-1, x.shape[2], x.shape[3])  # merge batch and sequence axes
             feats = self.resnet(x).view(bsize, seqlen, -1)
+            # print(feats.shape)
+            # print(self.lstm(feats))
             lstm_feats, (h_n, c_n) = self.lstm(feats)
             lstm_feats = lstm_feats.reshape(
                 -1, lstm_feats.shape[2]

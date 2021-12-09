@@ -1,6 +1,6 @@
 name: default
 n_channels: 3
-outsize: 6
+outsize: 4
 n_filters: [128, 128, 256, 256, 512, 512]
 kernel_size: [3, 3, 3, 3, 3, 3]
 n_resblocks: [0, 3, 3, 3, 3, 3]

@@ -176,9 +176,11 @@ class ModelModule(pl.LightningModule):
         f1 = metrics.f1_score(Y_true, Y_pred, zero_division=0, average="macro")
         phi = metrics.matthews_corrcoef(Y_true, Y_pred)
         kappa = metrics.cohen_kappa_score(Y_true, Y_pred)
+        accuracy = metrics.accuracy_score(Y_true,Y_pred)
         self.log(f"{tag}/f1", f1, prog_bar=True)
         self.log(f"{tag}/phi", phi, prog_bar=True)
         self.log(f"{tag}/kappa", kappa, prog_bar=True)
+        self.log(f"{tag}/accuracy", accuracy, prog_bar=True)
         if print_report:
             # Note: Lightning throws a tantrum when n_jobs>0
             utils.metrics_report(Y_true, Y_pred, tag=tag, n_jobs=0)
